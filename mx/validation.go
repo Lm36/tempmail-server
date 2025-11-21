@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/emersion/go-msgauth/dkim"
+	"golang.org/x/net/publicsuffix"
 )
 
 // Validator handles email validation (DKIM, SPF, DMARC)
@@ -205,23 +206,62 @@ func matchIP(ip net.IP, ipRange string) bool {
 }
 
 // lookupDMARCRecord retrieves DMARC policy from DNS
+// Per RFC 7489, if no DMARC record exists for a subdomain,
+// fall back to the organizational domain
 func lookupDMARCRecord(domain string) (string, error) {
-	// DMARC records are at _dmarc.<domain>
+	// Try exact domain first
 	dmarcDomain := "_dmarc." + domain
 
 	txtRecords, err := net.LookupTXT(dmarcDomain)
-	if err != nil {
-		return "", fmt.Errorf("DNS lookup failed: %w", err)
-	}
-
-	// Find DMARC record (starts with "v=DMARC1")
-	for _, record := range txtRecords {
-		if strings.HasPrefix(record, "v=DMARC1") {
-			return record, nil
+	if err == nil {
+		// Find DMARC record (starts with "v=DMARC1")
+		for _, record := range txtRecords {
+			if strings.HasPrefix(record, "v=DMARC1") {
+				log.Printf("DMARC: Found policy for %s", domain)
+				return record, nil
+			}
 		}
 	}
 
-	return "", fmt.Errorf("no DMARC record found")
+	// No DMARC record found for exact domain
+	// Try organizational domain if this is a subdomain
+	orgDomain := getOrganizationalDomain(domain)
+	if orgDomain != "" && orgDomain != domain {
+		log.Printf("DMARC: No policy for %s, checking organizational domain %s", domain, orgDomain)
+
+		orgDmarcDomain := "_dmarc." + orgDomain
+		txtRecords, err := net.LookupTXT(orgDmarcDomain)
+		if err == nil {
+			for _, record := range txtRecords {
+				if strings.HasPrefix(record, "v=DMARC1") {
+					log.Printf("DMARC: Found organizational domain policy for %s", orgDomain)
+					return record, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no DMARC record found for %s or organizational domain", domain)
+}
+
+// getOrganizationalDomain extracts the organizational domain from a fully qualified domain
+// For example: "em7877.tm.openai.com" -> "openai.com"
+// Uses the Public Suffix List to correctly handle multi-part TLDs like .co.uk
+func getOrganizationalDomain(domain string) string {
+	if domain == "" {
+		return ""
+	}
+
+	// Use publicsuffix to get eTLD+1 (organizational domain)
+	// This correctly handles all TLDs including multi-part ones like .co.uk
+	orgDomain, err := publicsuffix.EffectiveTLDPlusOne(domain)
+	if err != nil {
+		// If there's an error (e.g., domain is just a TLD or invalid),
+		// return empty string
+		return ""
+	}
+
+	return orgDomain
 }
 
 // extractDomain extracts domain from email address

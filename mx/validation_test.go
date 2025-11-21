@@ -511,6 +511,68 @@ func TestLookupSPFRecord(t *testing.T) {
 	}
 }
 
+func TestGetOrganizationalDomain(t *testing.T) {
+	tests := []struct {
+		name   string
+		domain string
+		want   string
+	}{
+		{
+			name:   "subdomain - mail server",
+			domain: "em7877.tm.openai.com",
+			want:   "openai.com",
+		},
+		{
+			name:   "subdomain - single level",
+			domain: "mail.example.com",
+			want:   "example.com",
+		},
+		{
+			name:   "subdomain - multiple levels",
+			domain: "a.b.c.example.com",
+			want:   "example.com",
+		},
+		{
+			name:   "organizational domain - already at org level",
+			domain: "example.com",
+			want:   "example.com",
+		},
+		{
+			name:   "organizational domain - different TLD",
+			domain: "example.org",
+			want:   "example.org",
+		},
+		{
+			name:   "single part domain - invalid",
+			domain: "localhost",
+			want:   "",
+		},
+		{
+			name:   "empty domain",
+			domain: "",
+			want:   "",
+		},
+		{
+			name:   "multi-part TLD subdomain",
+			domain: "mail.example.co.uk",
+			want:   "example.co.uk",
+		},
+		{
+			name:   "multi-part TLD org domain",
+			domain: "example.co.uk",
+			want:   "example.co.uk",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getOrganizationalDomain(tt.domain); got != tt.want {
+				t.Errorf("getOrganizationalDomain(%q) = %q, want %q", tt.domain, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestLookupDMARCRecord(t *testing.T) {
 	tests := []struct {
 		name       string
