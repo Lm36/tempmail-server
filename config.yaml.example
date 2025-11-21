@@ -1,0 +1,106 @@
+# Tempmail Server Configuration File
+# Copy this to config.yaml and customize
+
+domains:
+  - example.com
+  - temp.example.com
+
+database:
+  url: postgresql://tempmail:CHANGE_THIS_PASSWORD@postgres:5432/tempmail?sslmode=disable
+  pool_size: 10
+  max_overflow: 20
+
+server:
+  api_host: 127.0.0.1
+  api_port: 8000
+  mx_port: 25
+  max_message_size_mb: 10
+  hostname: mail.example.com
+
+  # Enable FastAPI interactive documentation endpoints (/docs, /redoc, /openapi.json)
+  docs_enabled: true
+
+cors:
+  # Allowed origins for CORS (Cross-Origin Resource Sharing)
+  # For development: Use ["*"] to allow all origins
+  # For production: Specify your frontend domains explicitly
+  allow_origins:
+    # - ["*"] 
+    - "https://example.com"
+    - "https://www.example.com"
+
+  # Allow cookies and authentication headers
+  allow_credentials: true
+
+  # Allowed HTTP methods
+  allow_methods:
+    - "*"
+
+  # Allowed HTTP headers
+  allow_headers:
+    - "*"
+
+tls:
+  # Enable TLS/STARTTLS for MX server (requires valid certificates)
+  enabled: false
+
+  # Certificate paths (inside container - mapped from ./certs/ on host)
+  # Place your certs in ./certs/cert.pem and ./certs/key.pem on the host
+  # Handled by setup.sh
+  cert_file: /config/certs/cert.pem
+  key_file: /config/certs/key.pem
+
+tempmail:
+  # How long before addresses expire and are deleted (all emails deleted too)
+  address_lifetime_hours: 24
+
+  # Maximum emails per address (oldest deleted when exceeded)
+  max_emails_per_address: 100
+
+  # How often cleanup job runs to delete expired addresses
+  cleanup_interval_hours: 1
+
+  # Address generation format: 'random' generates 8-char random strings
+  address_format: random
+
+  # Allow users to specify custom usernames when creating addresses
+  # If false, only random generation is allowed
+  allow_custom_usernames: true
+
+  # Minimum username length (3-64 recommended)
+  min_username_length: 3
+
+  # Maximum username length (3-64 recommended)
+  max_username_length: 64
+
+  # Reserved usernames that cannot be used for tempmail addresses
+  # Common system addresses should be reserved
+  reserved_usernames:
+    - admin
+    - postmaster
+    - abuse
+    - noreply
+    - no-reply
+    - root
+    - webmaster
+    - hostmaster
+    - mailer-daemon
+    - info
+    - support
+    - security
+    - sales
+    - contact
+
+validation:
+  # Check DKIM signatures on incoming mail
+  check_dkim: true
+
+  # Check SPF records
+  check_spf: true
+
+  # Check DMARC policy
+  check_dmarc: true
+
+  # Store validation results in database (doesn't reject mail, just stores for display)
+  store_results: true
+

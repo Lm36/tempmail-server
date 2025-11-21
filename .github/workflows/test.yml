@@ -1,0 +1,103 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test-api:
+    name: Test Python API
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: ./api
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: ./api
+        run: |
+          pytest tests/ -v --cov=app --cov-report=term-missing
+
+      - name: Validate OpenAPI spec generation
+        working-directory: ./api
+        run: |
+          python generate_openapi.py openapi.json
+          test -f openapi.json || exit 1
+          echo "OpenAPI spec generated successfully"
+
+  test-mx:
+    name: Test Go MX Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install dependencies
+        working-directory: ./mx
+        run: go mod download
+
+      - name: Run tests
+        working-directory: ./mx
+        run: go test -v -cover ./...
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Lint Python code
+        working-directory: ./api
+        run: ruff check app/
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Lint Go code
+        working-directory: ./mx
+        run: |
+          go fmt ./...
+          go vet ./...
+
+  docker-build:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build API Docker image
+        run: docker build -t tempmail-api:test ./api
+
+      - name: Build MX Docker image
+        run: docker build -t tempmail-mx:test ./mx

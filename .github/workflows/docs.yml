@@ -1,0 +1,97 @@
+name: Generate and Deploy Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  generate-docs:
+    name: Generate OpenAPI Docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: ./api
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate OpenAPI spec
+        working-directory: ./api
+        run: |
+          python generate_openapi.py ../docs/openapi.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Create docs site
+        run: |
+          mkdir -p _site
+
+          # Copy generated OpenAPI spec
+          cp docs/openapi.json _site/
+
+          # Create index.html with Swagger UI (read-only mode)
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>Tempmail Server API Documentation</title>
+              <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+            </head>
+            <body>
+              <div id="swagger-ui"></div>
+              <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+              <script>
+                window.onload = () => {
+                  window.ui = SwaggerUIBundle({
+                    url: './openapi.json',
+                    dom_id: '#swagger-ui',
+                    deepLinking: true,
+                    presets: [
+                      SwaggerUIBundle.presets.apis,
+                      SwaggerUIBundle.SwaggerUIStandalonePreset
+                    ],
+                    // Disable all interactive features
+                    supportedSubmitMethods: [],  // Disables "Try it out" for all methods
+                    tryItOutEnabled: false
+                  });
+                };
+              </script>
+            </body>
+          </html>
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+
+  deploy:
+    name: Deploy to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: generate-docs
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

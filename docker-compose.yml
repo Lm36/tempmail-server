@@ -1,0 +1,80 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: tempmail_db
+    environment:
+      POSTGRES_DB: tempmail
+      POSTGRES_USER: tempmail
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_insecure_default}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tempmail"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - tempmail_network
+
+  # FastAPI Backend
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: tempmail_api
+    environment:
+      CONFIG_PATH: /config/config.yaml
+      API_HOST: ${API_HOST:-0.0.0.0}  # Bind to all interfaces in container by default
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+    ports:
+      - "${API_BIND:-127.0.0.1}:8000:8000"  # Bind to localhost on host by default
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/v1/health').raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - tempmail_network
+
+  # Go MX Server
+  mx:
+    build:
+      context: ./mx
+      dockerfile: Dockerfile
+    container_name: tempmail_mx
+    environment:
+      CONFIG_PATH: /config/config.yaml
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ./certs:/config/certs:ro  # Maps host ./certs/ to container /config/certs/
+    ports:
+      - "25:25"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "25"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - tempmail_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  tempmail_network:
+    driver: bridge
