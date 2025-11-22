@@ -405,7 +405,28 @@ Mail Hostname: ${HOSTNAME}
 
 ═══════════════════════════════════════════════════════════
 
+Mail Server A Record (ONE TIME SETUP)
+─────────────────────────────────────────────────────
+A Record:
+  ${HOSTNAME}.  IN  A  ${SERVER_IP}
+
+═══════════════════════════════════════════════════════════
+
+MX Records (add for EACH domain)
+─────────────────────────────────────────────────────
+
 DNSEOF
+
+# Display mail server A record first
+echo "Mail Server A Record (ONE TIME SETUP):"
+echo "─────────────────────────────────────────────────────"
+echo "A Record:"
+echo "  ${HOSTNAME}.  IN  A  ${SERVER_IP}"
+echo ""
+echo "═══════════════════════════════════════════════════════════"
+echo ""
+echo "MX Records (add for EACH domain):"
+echo ""
 
 for domain in "${DOMAINS_ARRAY[@]}"; do
     domain=$(echo "$domain" | xargs)
@@ -414,10 +435,7 @@ for domain in "${DOMAINS_ARRAY[@]}"; do
     echo "MX Record:"
     echo "  ${domain}.  IN  MX  10  ${HOSTNAME}."
     echo ""
-    echo "A Record:"
-    echo "  ${HOSTNAME}.  IN  A  ${SERVER_IP}"
-    echo ""
-    
+
     # Append to DNS records file
     cat >> generated_dns.txt <<DNSEOF
 For domain: $domain
@@ -425,9 +443,6 @@ For domain: $domain
 
 MX Record:
   ${domain}.  IN  MX  10  ${HOSTNAME}.
-
-A Record:
-  ${HOSTNAME}.  IN  A  ${SERVER_IP}
 
 DNSEOF
 done
