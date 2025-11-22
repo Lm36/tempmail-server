@@ -2,6 +2,8 @@
 
 An inbound-only mail server and REST API for integrating with apps or building temp-mail sites in minutes.
 
+Powering https://mailbucket.cc
+
 ## Documentation
 
 - **[API Server](docs/api-server.md)** - REST API overview and quick start
