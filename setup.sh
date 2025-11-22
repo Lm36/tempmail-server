@@ -417,10 +417,7 @@ for domain in "${DOMAINS_ARRAY[@]}"; do
     echo "A Record:"
     echo "  ${HOSTNAME}.  IN  A  ${SERVER_IP}"
     echo ""
-    echo "Optional SPF Record (recommended):"
-    echo "  ${domain}.  IN  TXT  \"v=spf1 -all\""
-    echo ""
-
+    
     # Append to DNS records file
     cat >> generated_dns.txt <<DNSEOF
 For domain: $domain
@@ -431,9 +428,6 @@ MX Record:
 
 A Record:
   ${HOSTNAME}.  IN  A  ${SERVER_IP}
-
-Optional SPF Record (recommended):
-  ${domain}.  IN  TXT  "v=spf1 -all"
 
 DNSEOF
 done
@@ -448,8 +442,6 @@ Configure reverse DNS for your VPS IP address with your hosting provider.
 cd
 PTR Record should point:
   ${SERVER_IP}  →  ${HOSTNAME}
-
-Contact your VPS provider (DigitalOcean, AWS, Vultr, etc.) to set this up.
 
 ═══════════════════════════════════════════════════════════
 DNSEOF
@@ -466,9 +458,6 @@ echo ""
 echo "═══════════════════════════════════════════════════════"
 echo ""
 echo "✓ DNS records saved to: generated_dns.txt"
-echo ""
-echo "NOTE: DNS changes can take up to 48 hours to propagate,"
-echo "      but usually take effect within 1-4 hours."
 echo ""
 
 # Ask to continue
