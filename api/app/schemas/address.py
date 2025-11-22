@@ -1,6 +1,6 @@
 """Pydantic schemas for addresses"""
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, field_serializer
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -61,6 +61,10 @@ class AddressResponse(BaseModel):
     created_at: datetime
     expires_at: datetime
 
+    @field_serializer('created_at', 'expires_at')
+    def serialize_dt(self, dt: datetime, _info):
+        return dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
     class Config:
         from_attributes = True  # Pydantic v2
 
@@ -73,6 +77,10 @@ class AddressInfo(BaseModel):
     expires_at: datetime
     email_count: int = 0  # Number of emails received
     is_expired: bool = False
+
+    @field_serializer('created_at', 'expires_at')
+    def serialize_dt(self, dt: datetime, _info):
+        return dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
     class Config:
         from_attributes = True

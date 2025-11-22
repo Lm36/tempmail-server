@@ -1,6 +1,6 @@
 """Pydantic schemas for emails"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from datetime import datetime
 from uuid import UUID
 from typing import Optional, List
@@ -27,6 +27,10 @@ class EmailSummary(BaseModel):
     is_read: bool
     has_attachments: bool
     size_bytes: int
+
+    @field_serializer('received_at')
+    def serialize_dt(self, dt: datetime, _info):
+        return dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
     class Config:
         from_attributes = True
@@ -55,6 +59,10 @@ class EmailDetail(BaseModel):
 
     # Attachments list
     attachments: List[AttachmentInfo] = []
+
+    @field_serializer('received_at')
+    def serialize_dt(self, dt: datetime, _info):
+        return dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
     class Config:
         from_attributes = True

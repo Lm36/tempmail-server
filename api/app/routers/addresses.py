@@ -117,13 +117,15 @@ def create_address(request: AddressCreate = AddressCreate(), db: Session = Depen
     # Generate token
     token = generate_token()
 
-    # Calculate expiration
-    expires_at = datetime.utcnow() + timedelta(hours=settings.ADDRESS_LIFETIME_HOURS)
+    # Calculate timestamps - use same base time to ensure accurate lifetime
+    now = datetime.utcnow()
+    expires_at = now + timedelta(hours=settings.ADDRESS_LIFETIME_HOURS)
 
     # Create address
     address = Address(
         email=email,
         token=token,
+        created_at=now,
         expires_at=expires_at
     )
 
