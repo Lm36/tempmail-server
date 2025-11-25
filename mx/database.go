@@ -143,11 +143,14 @@ func (db *DB) StoreEmail(email *EmailData, attachments []AttachmentData) error {
 // getOrCreateAddress gets existing address or creates a temporary catch-all address
 // This is the "magic" of tempmail - any email sent to our domains auto-creates an address
 func (db *DB) getOrCreateAddress(tx *sql.Tx, email string) (string, error) {
-	// First try to find existing address
+	// Normalize email to lowercase for case-insensitive matching
+	normalizedEmail := strings.ToLower(email)
+
+	// First try to find existing address using normalized email
 	var addressID string
 	err := tx.QueryRow(`
 		SELECT id FROM addresses WHERE email = $1
-	`, email).Scan(&addressID)
+	`, normalizedEmail).Scan(&addressID)
 
 	if err == nil {
 		// Address exists
@@ -167,17 +170,18 @@ func (db *DB) getOrCreateAddress(tx *sql.Tx, email string) (string, error) {
 	// Generate a simple token for this auto-created address
 	token := generateSimpleToken()
 
+	// Store the normalized email address
 	err = tx.QueryRow(`
 		INSERT INTO addresses (email, token, expires_at)
 		VALUES ($1, $2, $3)
 		RETURNING id
-	`, email, token, expiresAt).Scan(&addressID)
+	`, normalizedEmail, token, expiresAt).Scan(&addressID)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to create address: %w", err)
 	}
 
-	log.Printf("Auto-created address %s (expires: %s)", email, expiresAt.Format(time.RFC3339))
+	log.Printf("Auto-created address %s (expires: %s) from original: %s", normalizedEmail, expiresAt.Format(time.RFC3339), email)
 	return addressID, nil
 }
 
@@ -187,6 +191,7 @@ func generateSimpleToken() string {
 	// In production API this is more sophisticated
 	return fmt.Sprintf("auto_%d", time.Now().UnixNano())
 }
+
 
 // CheckDomainAllowed checks if a domain is in the allowed list
 func (db *DB) CheckDomainAllowed(domain string, allowedDomains map[string]bool) bool {

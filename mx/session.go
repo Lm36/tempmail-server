@@ -71,9 +71,12 @@ func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
 		return fmt.Errorf("relay access denied for domain %s", domain)
 	}
 
+	// Normalize email address to lowercase for consistent storage
+	normalizedEmail := strings.ToLower(addr.Address)
+
 	// Accept the recipient (catch-all - any local part is accepted)
-	s.to = append(s.to, addr.Address)
-	log.Printf("[%s] ACCEPTED: <%s> (total recipients: %d)", s.remoteAddr, addr.Address, len(s.to))
+	s.to = append(s.to, normalizedEmail)
+	log.Printf("[%s] ACCEPTED: <%s> -> normalized as <%s> (total recipients: %d)", s.remoteAddr, addr.Address, normalizedEmail, len(s.to))
 	return nil
 }
 
