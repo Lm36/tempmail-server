@@ -74,7 +74,19 @@ func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
 	// Normalize email address to lowercase for consistent storage
 	normalizedEmail := strings.ToLower(addr.Address)
 
-	// Accept the recipient (catch-all - any local part is accepted)
+	// Check if address exists in database
+	exists, err := s.db.AddressExists(normalizedEmail)
+	if err != nil {
+		log.Printf("[%s] ERROR: Failed to check address existence for %s: %v", s.remoteAddr, normalizedEmail, err)
+		return fmt.Errorf("temporary server error")
+	}
+
+	if !exists {
+		log.Printf("[%s] REJECTED: Address does not exist: %s", s.remoteAddr, normalizedEmail)
+		return fmt.Errorf("mailbox unavailable")
+	}
+
+	// Accept the recipient
 	s.to = append(s.to, normalizedEmail)
 	log.Printf("[%s] ACCEPTED: <%s> -> normalized as <%s> (total recipients: %d)", s.remoteAddr, addr.Address, normalizedEmail, len(s.to))
 	return nil

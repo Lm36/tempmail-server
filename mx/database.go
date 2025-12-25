@@ -97,10 +97,10 @@ func (db *DB) StoreEmail(email *EmailData, attachments []AttachmentData) error {
 
 	log.Printf("Stored email %s with ID %s", email.MessageID, emailID)
 
-	// Find or create address for recipient
-	addressID, err := db.getOrCreateAddress(tx, email.ToAddr)
+	// Find address for recipient (must already exist)
+	addressID, err := db.getAddress(tx, email.ToAddr)
 	if err != nil {
-		return fmt.Errorf("failed to get/create address: %w", err)
+		return fmt.Errorf("failed to get address: %w", err)
 	}
 
 	// Link email to address
@@ -140,58 +140,45 @@ func (db *DB) StoreEmail(email *EmailData, attachments []AttachmentData) error {
 	return nil
 }
 
-// getOrCreateAddress gets existing address or creates a temporary catch-all address
-// This is the "magic" of tempmail - any email sent to our domains auto-creates an address
-func (db *DB) getOrCreateAddress(tx *sql.Tx, email string) (string, error) {
+// getAddress gets existing address by email (does not create)
+func (db *DB) getAddress(tx *sql.Tx, email string) (string, error) {
 	// Normalize email to lowercase for case-insensitive matching
 	normalizedEmail := strings.ToLower(email)
 
-	// First try to find existing address using normalized email
+	// Find existing address using normalized email
 	var addressID string
 	err := tx.QueryRow(`
 		SELECT id FROM addresses WHERE email = $1
 	`, normalizedEmail).Scan(&addressID)
 
-	if err == nil {
-		// Address exists
-		return addressID, nil
+	if err == sql.ErrNoRows {
+		return "", fmt.Errorf("address does not exist: %s", normalizedEmail)
 	}
 
-	if err != sql.ErrNoRows {
-		// Real error
+	if err != nil {
 		return "", fmt.Errorf("failed to query address: %w", err)
 	}
 
-	// Address doesn't exist - create it as a catch-all temporary address
-	// Note: This is auto-created, not explicitly generated via API
-	// It will expire based on default lifetime
-	expiresAt := time.Now().Add(24 * time.Hour) // Default 24h expiration
-
-	// Generate a simple token for this auto-created address
-	token := generateSimpleToken()
-
-	// Store the normalized email address
-	err = tx.QueryRow(`
-		INSERT INTO addresses (email, token, expires_at)
-		VALUES ($1, $2, $3)
-		RETURNING id
-	`, normalizedEmail, token, expiresAt).Scan(&addressID)
-
-	if err != nil {
-		return "", fmt.Errorf("failed to create address: %w", err)
-	}
-
-	log.Printf("Auto-created address %s (expires: %s) from original: %s", normalizedEmail, expiresAt.Format(time.RFC3339), email)
 	return addressID, nil
 }
 
-// generateSimpleToken generates a random token for auto-created addresses
-func generateSimpleToken() string {
-	// Simple token generation for auto created addresses, users wont see it
-	// In production API this is more sophisticated
-	return fmt.Sprintf("auto_%d", time.Now().UnixNano())
-}
 
+// AddressExists checks if an email address exists in the database
+func (db *DB) AddressExists(email string) (bool, error) {
+	// Normalize email to lowercase for case-insensitive matching
+	normalizedEmail := strings.ToLower(email)
+
+	var exists bool
+	err := db.conn.QueryRow(`
+		SELECT EXISTS(SELECT 1 FROM addresses WHERE email = $1)
+	`, normalizedEmail).Scan(&exists)
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check address existence: %w", err)
+	}
+
+	return exists, nil
+}
 
 // CheckDomainAllowed checks if a domain is in the allowed list
 func (db *DB) CheckDomainAllowed(domain string, allowedDomains map[string]bool) bool {
