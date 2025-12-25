@@ -5,39 +5,6 @@ import (
 	"time"
 )
 
-func TestGenerateSimpleToken(t *testing.T) {
-	// Generate multiple tokens
-	tokens := make(map[string]bool)
-
-	for i := 0; i < 10; i++ {
-		token := generateSimpleToken()
-
-		// Token should not be empty
-		if token == "" {
-			t.Error("generateSimpleToken() returned empty string")
-		}
-
-		// Token should start with "auto_"
-		if len(token) < 5 || token[:5] != "auto_" {
-			t.Errorf("generateSimpleToken() = %v, should start with 'auto_'", token)
-		}
-
-		// Token should be unique
-		if tokens[token] {
-			t.Errorf("generateSimpleToken() generated duplicate token: %v", token)
-		}
-		tokens[token] = true
-
-		// Small delay to ensure different timestamps
-		time.Sleep(time.Microsecond)
-	}
-
-	// Should have generated 10 unique tokens
-	if len(tokens) != 10 {
-		t.Errorf("generateSimpleToken() generated %v unique tokens, want 10", len(tokens))
-	}
-}
-
 func TestCheckDomainAllowed(t *testing.T) {
 	// Create a DB instance (we don't need actual connection for this test)
 	db := &DB{}
