@@ -8,6 +8,19 @@ import (
 	"github.com/jhillyerd/enmime"
 )
 
+// mockSessionDB implements SessionDB interface for testing
+type mockSessionDB struct {
+	addresses map[string]bool
+}
+
+func (m *mockSessionDB) AddressExists(email string) (bool, error) {
+	return m.addresses[strings.ToLower(email)], nil
+}
+
+func (m *mockSessionDB) StoreEmail(email *EmailData, attachments []AttachmentData) error {
+	return nil // Not used in these tests
+}
+
 func TestGetClientIP(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -242,7 +255,17 @@ func TestSessionRcpt(t *testing.T) {
 	}
 
 	domains := cfg.GetDomainMap()
-	s := NewSession("127.0.0.1:12345", "client.example.com", cfg, nil, nil, domains)
+
+	// Create mock DB with test addresses that exist
+	mockDB := &mockSessionDB{
+		addresses: map[string]bool{
+			"test@tempmail.example.com": true,
+			"user@temp.test":            true,
+			"user@tempmail.example.com": true,
+		},
+	}
+
+	s := NewSession("127.0.0.1:12345", "client.example.com", cfg, mockDB, nil, domains)
 
 	tests := []struct {
 		name      string

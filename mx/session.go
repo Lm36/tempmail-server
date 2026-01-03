@@ -14,6 +14,12 @@ import (
 	"github.com/jhillyerd/enmime"
 )
 
+// SessionDB defines the database operations needed by Session
+type SessionDB interface {
+	AddressExists(email string) (bool, error)
+	StoreEmail(email *EmailData, attachments []AttachmentData) error
+}
+
 // Session represents an SMTP session
 type Session struct {
 	from       string
@@ -21,13 +27,13 @@ type Session struct {
 	remoteAddr string
 	hostname   string
 	cfg        *Config
-	db         *DB
+	db         SessionDB
 	validator  *Validator
 	domains    map[string]bool
 }
 
 // NewSession creates a new SMTP session
-func NewSession(remoteAddr, hostname string, cfg *Config, db *DB, validator *Validator, domains map[string]bool) *Session {
+func NewSession(remoteAddr, hostname string, cfg *Config, db SessionDB, validator *Validator, domains map[string]bool) *Session {
 	return &Session{
 		remoteAddr: remoteAddr,
 		hostname:   hostname,
