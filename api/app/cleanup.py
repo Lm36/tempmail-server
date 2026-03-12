@@ -16,8 +16,9 @@ def cleanup_expired_addresses():
 
     This is run periodically as a background task.
     """
-    db = SessionLocal()
+    db = None
     try:
+        db = SessionLocal()
         # Call the database function to cleanup
         result = db.execute(text("SELECT cleanup_expired_addresses()"))
         deleted_count = result.scalar()
@@ -31,10 +32,12 @@ def cleanup_expired_addresses():
 
     except Exception as e:
         logger.error(f"Cleanup error: {e}")
-        db.rollback()
+        if db:
+            db.rollback()
 
     finally:
-        db.close()
+        if db:
+            db.close()
 
 
 def run_cleanup_loop():

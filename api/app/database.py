@@ -18,6 +18,8 @@ if not settings.DATABASE_URL.startswith('sqlite'):
         "pool_size": settings.DB_POOL_SIZE,
         "max_overflow": settings.DB_MAX_OVERFLOW,
         "pool_pre_ping": True,  # Verify connections before using them
+        "pool_recycle": 3600,  # Recycle connections after 1 hour
+        "pool_timeout": 30,  # Wait up to 30 seconds for a connection
     })
 
 engine = create_engine(settings.DATABASE_URL, **engine_kwargs)
@@ -54,11 +56,13 @@ def get_db() -> Generator[Session, None, None]:
 
 def check_db_connection() -> bool:
     """Check if database connection is working"""
+    db = SessionLocal()
     try:
-        db = SessionLocal()
         db.execute(text("SELECT 1"))
-        db.close()
+        db.commit()
         return True
     except Exception as e:
         print(f"Database connection error: {e}")
         return False
+    finally:
+        db.close()

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 import threading
 import logging
 import os
+import time
 
 from app.config import settings
 from app.database import check_db_connection
@@ -74,13 +75,23 @@ async def shutdown_event():
     logger.info("Tempmail Server API shutting down...")
 
 
-# Health check endpoint
+# Health check endpoint with rate limiting
+_last_health_check = {"time": 0, "result": None}
+_health_check_cache_seconds = 5
+
 @app.get("/api/v1/health")
 def health_check():
-    """Health check endpoint for monitoring"""
+    """Health check endpoint for monitoring (cached for 5 seconds)"""
+    now = time.time()
+
+    # Use cached result if less than 5 seconds old
+    if now - _last_health_check["time"] < _health_check_cache_seconds and _last_health_check["result"]:
+        return _last_health_check["result"]
+
+    # Perform actual health check
     db_ok = check_db_connection()
 
-    return JSONResponse(
+    result = JSONResponse(
         status_code=200 if db_ok else 503,
         content={
             "status": "healthy" if db_ok else "unhealthy",
@@ -88,6 +99,12 @@ def health_check():
             "domains": settings.DOMAINS
         }
     )
+
+    # Update cache
+    _last_health_check["time"] = now
+    _last_health_check["result"] = result
+
+    return result
 
 
 # Include routers
